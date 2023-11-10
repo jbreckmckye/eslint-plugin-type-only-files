@@ -10,9 +10,44 @@ An ESLint plugin to support type-only files in TypeScript. Files with this rule 
 
 ...then this plugin is for you.
 
-## Usage
+## Installation
 
-(todo, installation, setup, use with file patterns + coverage)
+This plugin depends on `@typescript-eslint/parser`
+
+```
+yarn add --dev @typescript-eslint/parser eslint-plugin-type-only-files
+```
+
+Ensure the parser is set in your ESLint config (e.g. `.eslintrc`), then add the plugin:
+
+```
+{
+  "parser": "@typescript-eslint/parser",
+  "plugins": [
+    "type-only-files"
+  ],
+  "rules": {
+    "type-only-files/only-types": ["error"]
+  }
+}
+```
+
+The rule will default to banning non-types and non-type import/exports in files named `*.types.ts(x)`.
+
+Modify your configuration as desired (defaults are shown):
+
+```
+{
+  "rules": {
+    "type-only-files/only-types": [
+      "error", {
+        "filePattern": "\.types\.tsx?$",
+        "allowEnums": false
+      }
+    ]
+  }
+}
+```
 
 ## Rule(s)
 
