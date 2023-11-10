@@ -1,7 +1,7 @@
-import { onlyTypes } from './rules'
+import { typeOnlyFile } from './rules'
 
 export default {
   rules: {
-    'only-types': onlyTypes
+    'types-only': typeOnlyFile
   }
 }

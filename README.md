@@ -27,7 +27,7 @@ Ensure the parser is set in your ESLint config (e.g. `.eslintrc`), then add the 
     "type-only-files"
   ],
   "rules": {
-    "type-only-files/only-types": ["error"]
+    "type-only-files/types-only": ["error"]
   }
 }
 ```
@@ -39,7 +39,7 @@ Modify your configuration as desired (defaults are shown):
 ```
 {
   "rules": {
-    "type-only-files/only-types": [
+    "type-only-files/type-only-file": [
       "error", {
         "filePattern": "\.types\.tsx?$",
         "allowEnums": false
