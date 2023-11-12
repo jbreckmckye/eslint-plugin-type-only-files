@@ -2,13 +2,15 @@
   "name": "eslint-plugin-type-only-files",
   "author": "Jimmy Breck-McKye",
   "description": "ESLint rule for type-only TS files",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
   "scripts": {
+    "dev": "rm -rf dist || true && tsc --watch",
+    "build": "rm -rf dist || true && tsc",
     "typecheck": "tsc --noEmit"
   },
-  "workspaces": [
-    "packages/plugin",
-    "packages/examples"
-  ],
   "devDependencies": {
     "@typescript-eslint/types": "5.10.2",
     "@typescript-eslint/utils": "5.10.2",
