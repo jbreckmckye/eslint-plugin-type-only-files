@@ -1,5 +1,7 @@
 import * as AST from '@typescript-eslint/types/dist/ast-spec'
-import { TSESLint } from '@typescript-eslint/utils'
+import { AST_NODE_TYPES } from '@typescript-eslint/types/dist/ast-spec'
+import { JSONSchema, TSESLint } from '@typescript-eslint/utils'
+import { RuleMetaDataDocs } from '@typescript-eslint/utils/dist/ts-eslint'
 
 /**
  * Module Types
@@ -7,7 +9,7 @@ import { TSESLint } from '@typescript-eslint/utils'
  */
 
 type Options = {
-  allowEnums?: true,
+  banEnums?: boolean,
   filePattern?: string | RegExp
 }
 
@@ -18,179 +20,145 @@ type MessageIDs = keyof typeof ERROR_MESSAGES
  * ============================================================================
  */
 
-const DEFAULT_FILE_PATTERN = /\.types\.ts(x?)$/g
+const DOCS: RuleMetaDataDocs = {
+  description: 'Makes selected files type-only (so they can be excluded from test coverage, etc.)',
+  recommended: 'error',
+  url: 'https://github.com/jbreckmckye/eslint-plugin-type-only-files/README.md'
+}
 
 const ERROR_MESSAGES = {
-  exportTypes: 'Type-only files should only export types or interfaces',
-  exportTypesOrEnums: 'Type-only files should only export types, interfaces, or enums',
-  importTypes: 'Type-only files should only use "import type"',
+  exportTypes: 'Type-only files should only export {{ allowed }}',
+  importTypes: 'Type-only files should only use type imports (e.g. "import type { }")',
   noEnums: 'Enums are not allowed by your configuration (allowEnums)',
-  noNonTypes: 'Type-only files should only declare types or interfaces. Found a {{ type }}',
-  noNonTypesOrEnums: 'Type-only files should only declare types, interfaces, or enums. Found a {{ type }}'
+  noNonTypes: 'Type-only files should only declare {{ allowed }}. Found a {{ type }}'
+}
+
+const OPTIONS_SCHEMA: JSONSchema = {
+  type: 'object',
+  properties: {
+    allowEnums: { type: 'boolean', required: false },
+    filePattern: { type: 'string', required: false }
+  }
 }
 
 /**
- * Rule: typeOnlyFile
+ * Rule: typeFile
  * ============================================================================
  */
 
-export const typeOnlyFile: TSESLint.RuleModule<MessageIDs, [Options | undefined]> = {
+export const onlyTypes: TSESLint.RuleModule<MessageIDs, [Options | undefined]> = {
   meta: {
-    docs: {
-      description: 'Makes selected files type-only (so they can be excluded from test coverage, etc.)',
-      recommended: 'error',
-      url: 'https://github.com/jbreckmckye/eslint-plugin-type-only-files/README.md'
-    },
+    docs: DOCS,
     messages: ERROR_MESSAGES,
     type: 'problem',
-    schema: [{
-      type: 'object',
-      properties: {
-        allowEnums: {type: 'boolean', required: false},
-        filePattern: {type: 'string', required: false}
-      }
-    }]
+    schema: OPTIONS_SCHEMA
   },
   create(ctx) {
-    const { allowEnums, filePattern } = ctx.options[0] || {}
-    const fileMatch = parseFilePattern(filePattern)
+    const { banEnums, filePattern } = ctx.options[0] || {}
+    const fileMatch = getFileMatch(filePattern)
 
-    if (ctx.getFilename().match(fileMatch)) {
-      // todo Just a big list o' lines we've already warned on. Needs profiling...
-      const invalidLines: number[] = []
-
-      const walker = new WalkerState()
-
-      const reportNonTypeExport = (node: AST.Node) => ctx.report({
-        node,
-        messageId: allowEnums ? 'exportTypesOrEnums' : 'exportTypes'
-      })
-
+    // Bail out if this is not a matched file pattern
+    if (!ctx.getFilename().match(fileMatch)) {
       return {
-        /**
-         * Primary check for whether node is prohibited
-         * todo: a more efficient check could be to just traverse the top level items in (node:Program).body ?
-         */
-        '*'(node: AST.Node) {
-          switch (node.type) {
-            // These nodes are always allowed
-            case 'ExportAllDeclaration':
-            case 'ExportNamedDeclaration':
-            case 'ExportDefaultDeclaration':
-            case 'ImportDeclaration':
-            case 'Program':
-            case 'TSTypeAliasDeclaration':
-            case 'TSInterfaceDeclaration':
-              break
-            // Enums are sometimes allowed
-            case 'TSEnumDeclaration':
-              if (!allowEnums) {
-                ctx.report({node, messageId: 'noEnums'})
-              }
-              break
-
-            default:
-              if (
-                !walker.insideType &&                           // Skip subtree of a type declaration
-                !walker.insideImport &&                         // Skip subtree of an import declaration
-                invalidLines.indexOf(node.loc.start.line) == -1 // Skip warning on lines that already have errors
-              ) {
-                ctx.report({
-                  node,
-                  messageId: allowEnums ? 'noNonTypesOrEnums' : 'noNonTypes',
-                  data: {
-                    type: node.type
-                  }
-                })
-                for (let i = node.loc.start.line; i <= node.loc.end.line; i++) {
-                  invalidLines.push(i)
-                }
-              }
-          }
-        },
-
-        /**
-         * Enforce exporting of types
-         */
-        'ExportNamedDeclaration'(node: AST.ExportNamedDeclaration) {
-          if (node.exportKind === 'value' && node.declaration?.type !== 'TSEnumDeclaration') {
-            reportNonTypeExport(node)
-          }
-        },
-        'ExportDefaultDeclaration'(node: AST.ExportDefaultDeclaration) {
-          // This should always be invalid as the spec says `export default` must always be followed by an expression, function, or class
-          reportNonTypeExport(node)
-        },
-        'ExportAllDeclaration'(node: AST.ExportAllDeclaration) {
-          // Limitation: this can't detect when `export type *` includes an enum
-          if (node.exportKind == 'value') {
-            reportNonTypeExport(node)
-          }
-        },
-
-        /**
-         * Enforce importing of types
-         * Skip inspecting subtrees of import statements
-         */
-        'ImportDeclaration'(node: AST.ImportDeclaration) {
-          walker.enterImportDeclaration()
-          if (node.importKind == 'value') {
-            ctx.report({node, messageId: 'importTypes'})
-          }
-        },
-        'ImportDeclaration:exit': walker.exitImportDeclaration,
-
-        /**
-         * We switch off node checks whilst within a type declaration.
-         * Type declarations cannot be nested, so it's safe to have a context-free switch.
-         */
-
-        'TSTypeAliasDeclaration': walker.enterTypeDeclaration,
-        'TSInterfaceDeclaration': walker.enterTypeDeclaration,
-        'TSEnumDeclaration': walker.enterTypeDeclaration,
-
-        'TSTypeAliasDeclaration:exit': walker.exitTypeDeclaration,
-        'TSInterfaceDeclaration:exit': walker.exitTypeDeclaration,
-        'TSEnumDeclaration:exit': walker.exitTypeDeclaration
+        // Null visitor
       }
+    }
 
-    } else {
-      // File is not a types-file, nothing to do
-      return {}
+    const allowed = banEnums
+      ? 'types or interfaces'
+      : 'types, interfaces, or enums'
+
+    return {
+      // Rather than visiting all the nodes, we only need to query the top level statements.
+      Program(node: AST.Program) {
+        for (const topLevelStatement of node.body) {
+          switch (topLevelStatement.type) {
+            // Exports
+            // ============================================================================
+
+            case AST_NODE_TYPES.ExportAllDeclaration: {
+              // ex. export * from 'foo'
+              // ex. export type * from 'foo'
+              // Shortcoming: cannot tell when `export type` is exporting an enum
+              const { exportKind } = topLevelStatement
+              if (exportKind !== 'type') {
+                ctx.report({node, messageId: 'exportTypes', data: { allowed }})
+              }
+              break
+            }
+
+            case AST_NODE_TYPES.ExportDefaultDeclaration:
+              // ex: export default { ... }
+              // Default exports cannot be types, they must always be an expression, function or class
+              ctx.report({node, messageId: 'exportTypes', data: { allowed }})
+              break
+
+            case AST_NODE_TYPES.ExportNamedDeclaration: {
+              // ex. export const Thing = ...
+              // ex. export type Thing = ...
+              // ex. export { foo, bar }
+              // ex. export type { Foo, Bar }
+              // Shortcoming: hard to tell if non-type-style export is actually exporting types
+              const { declaration, exportKind } = topLevelStatement
+              const isTypeExport = exportKind === 'type' || (!banEnums && declaration?.type === AST_NODE_TYPES.TSEnumDeclaration)
+              if (!isTypeExport) {
+                ctx.report({node, messageId: 'exportTypes', data: { allowed }})
+              }
+              break
+            }
+
+            // Imports
+            // ============================================================================
+
+            case AST_NODE_TYPES.ImportDeclaration: {
+              // ex. import 'sideEffect'
+              // ex. import * as A from 'a'
+              // ex. import type * as A from 'a'
+              // ex. import { A, type B } from 'b'
+              // ex. import type { A, B } from 'c'
+              const { importKind, specifiers } = topLevelStatement
+              const typeImport = importKind === 'type' || specifiers.every(
+                specifier => 'importKind' in specifier && specifier.importKind === 'type'
+              )
+              if (!typeImport) {
+                ctx.report({node, messageId: 'importTypes' })
+              }
+              break
+            }
+
+            // Type declarations
+            // ============================================================================
+
+            case AST_NODE_TYPES.TSTypeAliasDeclaration:
+            case AST_NODE_TYPES.TSInterfaceDeclaration:
+              // ex. type Alpha = ...
+              // ex. interface Alpha { ... }
+              break
+
+            case AST_NODE_TYPES.TSEnumDeclaration:
+              // ex. enum Thing { }
+              if (banEnums) ctx.report({ node, messageId: 'noEnums' })
+              break
+
+            // Ban everything else
+            // ============================================================================
+            default:
+              ctx.report({ node, messageId: 'noNonTypes', data: { allowed, type: node.type }})
+          }
+        }
+      }
     }
   }
 }
 
-class WalkerState {
-  insideType = false
-  insideImport = false
+function getFileMatch(pattern: Options['filePattern']) {
+  if (!pattern) {
+    return /\.types\.ts(x?)$/g
 
-  enterImportDeclaration = () => {
-    this.insideImport = true
-  }
-
-  exitImportDeclaration = () => {
-    this.insideImport = false
-  }
-
-  enterTypeDeclaration = () => {
-    this.insideType = true
-  }
-
-  exitTypeDeclaration = () => {
-    this.insideType = false
-  }
-}
-
-// todo this is not needed - by default eslint will not apply rules from plugins
-function parseFilePattern(filePattern?: string | RegExp) {
-  if (typeof filePattern === 'string') {
-    return new RegExp(filePattern)
-
-  } else if (filePattern instanceof RegExp) {
-    return filePattern
+  } else if (pattern instanceof RegExp) {
+    return pattern
 
   } else {
-    return DEFAULT_FILE_PATTERN
+    return new RegExp(pattern)
   }
 }

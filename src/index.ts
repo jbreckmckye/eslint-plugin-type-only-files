@@ -1,5 +1,5 @@
-import { typeOnlyFile } from './rules'
+import { onlyTypes } from './rules'
 
 export const rules = {
-  'types-only': typeOnlyFile
+  'only-types': onlyTypes
 }
