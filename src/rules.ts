@@ -4,7 +4,7 @@ import { JSONSchema, TSESLint } from '@typescript-eslint/utils'
 import { RuleMetaDataDocs } from '@typescript-eslint/utils/dist/ts-eslint'
 
 /**
- * Module Types
+ * Types
  * ============================================================================
  */
 
@@ -29,7 +29,7 @@ const DOCS: RuleMetaDataDocs = {
 const ERROR_MESSAGES = {
   exportTypes: 'Type-only files should only export {{ allowed }}',
   importTypes: 'Type-only files should only use type imports (e.g. "import type { }")',
-  noEnums: 'Enums are not allowed by your configuration (allowEnums)',
+  noEnums: 'Enums are not allowed by your configuration (banEnums)',
   noNonTypes: 'Type-only files should only declare {{ allowed }}. Found a {{ type }}'
 }
 
