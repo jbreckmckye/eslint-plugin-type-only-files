@@ -1,11 +1,19 @@
 {
   "name": "eslint-plugin-type-only-files",
+  "version": "1.0.0",
   "author": "Jimmy Breck-McKye",
   "description": "ESLint rule for type-only TS files",
+  "license": "MIT",
+  "repository": "https://github.com/jbreckmckye/eslint-plugin-type-only-files",
   "main": "dist/index.js",
   "exports": {
     ".": "./dist/index.js"
   },
+  "files": [
+    "package.json",
+    "README.md",
+    "dist"
+  ],
   "scripts": {
     "dev": "rm -rf dist || true && tsc --watch",
     "build": "rm -rf dist || true && tsc",

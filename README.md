@@ -1,14 +1,13 @@
 # eslint-plugin-type-only-files
 
-An ESLint plugin to support type-only files in TypeScript. Files with this rule enabled can only use types and interfaces.
+An ESLint plugin to support **type-only files** in TypeScript. Files with a matching pattern can only use types,
+interfaces and enums.
 
-### Why would I use this?
+## Use cases
 
-- You have `.ts` files that are only contain types / interfaces (e.g. `api.types.ts`)
-- You want to exclude these files from things like unit test coverage
-- But you also want ESLint to make sure no non-type code sneaks into these files
-
-...then this plugin is for you.
+- Files that should only describe types - e.g. `api.types.ts`
+- Safely excluding type-only files from test coverage
+- In a monorepo, safely excluding changes to type-only modules from test / deploy invalidation
 
 ## Installation
 
@@ -42,7 +41,7 @@ Modify your configuration as desired (defaults are shown):
     "type-only-files/only-types": [
       "error", {
         "banEnums": true,
-        "filePattern": "\.types\.tsx?$"
+        "filePattern": /\.types\.tsx?$/.source
       }
     ]
   }
@@ -53,7 +52,9 @@ Modify your configuration as desired (defaults are shown):
 
 ### `banEnums`
 
-Prohibit enums in type-only files. Note that this can't detect when an enum is exported via `export type { ... }`.
+Prohibit enums in type-only files.
+
+Note that this can't detect when an enum is imported via `import type { MyEnum }`.
 
 ### `filePattern`
 
@@ -64,7 +65,7 @@ Specify the pattern for "type only files" in your project. By default, this is a
 ### Imports
 
 ```
-Type-only files should only use type imports (e.g. "import type { }")
+Type-only files should only use type imports (e.g. "import type { }").
 ```
 
 Rationale:
@@ -76,21 +77,21 @@ Banned:
 ```typescript
 import 'sideEffect'
 import * as A from 'file'
-import { A, B } from 'file'
+import { valueA, valueB } from 'file'
 ```
 
 Allowed:
 
 ```typescript
 import type * as T from 'file'
-import type { A, B } from 'file'
-import { type A, type B } from 'file'
+import type { TypeA, TypeB } from 'file'
+import { type TypeA, type TypeB } from 'file'
 ```
 
 ### Exports
 
 ```
-Type-only files should only export types, interfaces, or enums
+Type-only files should only export types, interfaces, or enums.
 ```
 
 Rationale:
@@ -103,21 +104,29 @@ Banned:
 ```typescript
 export const variable = 'a'
 export default someExpression()
-export { value1, value2 }
+
+export { valueA, valueB }
+export { type TypeA, valueB }
 ```
 
 Allowed:
 
 ```typescript
-export type A = { }
-export type { Foo, Bar }
+export type TypeA = { }
+
+export type { TypeA, TypeB }
+export { type TypeA, type TypeB }
+
 export enum MyEnum { }
 ```
+
+Limitation: this plugin cannot detect the case `export { MyEnum }` as a type-only export. Work around this with `export
+enum MyEnum { ... }`.
 
 ### Non-types
 
 ```
-Type-only files should only declare types, interfaces, or enums. Found a VariableDeclaration
+Type-only files should only declare types, interfaces, or enums. Found a VariableDeclaration.
 ```
 
 Rationale:
