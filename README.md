@@ -31,7 +31,7 @@ Ensure the parser is set in your ESLint config (e.g. `.eslintrc`), then add the 
 }
 ```
 
-The rule will default to banning non-types and non-type import/exports in files named `*.types.ts(x)`.
+The rule will default to banning non-types and non-type import/exports in files named `*.types.ts(x)` or `types.ts(x)`.
 
 Modify your configuration as desired (defaults are shown):
 
@@ -41,7 +41,7 @@ Modify your configuration as desired (defaults are shown):
     "type-only-files/only-types": [
       "error", {
         "banEnums": true,
-        "filePattern": /\.types\.tsx?$/.source
+        "filePattern": /[.\\/]types\.tsx?$/.source
       }
     ]
   }

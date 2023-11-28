@@ -1,6 +1,6 @@
 {
   "name": "eslint-plugin-type-only-files",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Jimmy Breck-McKye",
   "description": "ESLint rule for type-only TS files",
   "license": "MIT",
@@ -19,9 +19,11 @@
     "build": "rm -rf dist || true && tsc",
     "typecheck": "tsc --noEmit"
   },
-  "devDependencies": {
+  "dependencies": {
     "@typescript-eslint/types": "5.10.2",
-    "@typescript-eslint/utils": "5.10.2",
+    "@typescript-eslint/utils": "5.10.2"
+  },
+  "devDependencies": {
     "typescript": "5.2.2"
   }
 }

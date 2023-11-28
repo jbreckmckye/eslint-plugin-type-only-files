@@ -161,7 +161,7 @@ export const onlyTypes: TSESLint.RuleModule<MessageIDs, [Options | undefined]> =
 
 function getFileMatch(pattern: Options['filePattern']) {
   if (!pattern) {
-    return /\.types\.ts(x?)$/g
+    return /[.\\/]types\.tsx?$/g
 
   } else if (pattern instanceof RegExp) {
     return pattern
