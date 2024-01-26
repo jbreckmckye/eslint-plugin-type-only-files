@@ -148,6 +148,14 @@ export const onlyTypes: TSESLint.RuleModule<MessageIDs, [Options | undefined]> =
               if (banEnums) ctx.report({node: programNode, messageId: 'noEnums'})
               break
 
+            // Ambient declarations
+            // ============================================================================
+            // These cannot contain executable code, at most they can declare interfaces
+            // implemented elsewhere (or their literal values)
+
+            case AST_NODE_TYPES.TSModuleDeclaration:
+              break
+
             // Ban everything else
             // ============================================================================
             default:
