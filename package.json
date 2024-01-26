@@ -1,6 +1,6 @@
 {
   "name": "eslint-plugin-type-only-files",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "Jimmy Breck-McKye",
   "description": "ESLint rule for type-only TS files",
   "license": "MIT",
